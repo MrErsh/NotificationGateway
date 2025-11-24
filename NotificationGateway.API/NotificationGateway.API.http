@@ -1,0 +1,10 @@
+@NotificationGateway.API_HostAddress = http://localhost:5000
+
+POST {{NotificationGateway.API_HostAddress}}/api/notifications/notify
+Content-Type: application/json
+
+{
+  //NotificationRequestDto
+}
+
+###
