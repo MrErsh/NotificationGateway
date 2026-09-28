@@ -89,6 +89,55 @@ namespace NotificationGateway.Application.Tests.Validators
             result.IsValid.Should().BeFalse();
         }
 
+        [Fact]
+        public void Validate_WebhookChannelWithPublicHttpsUrl_True()
+        {
+            var notification = CreateInstance(n =>
+            {
+                n.Channel = "Webhook";
+                n.Recipient = "https://example.com/hooks/x";
+            });
+
+            var result = Validator.Validate(notification);
+
+            result.IsValid.Should().BeTrue();
+        }
+
+        [Theory]
+        [InlineData("http://localhost/x")]
+        [InlineData("http://127.0.0.1/x")]
+        [InlineData("http://169.254.169.254/latest/meta-data/")]
+        [InlineData("http://10.0.0.5/x")]
+        [InlineData("http://192.168.1.1/x")]
+        [InlineData("file:///etc/passwd")]
+        [InlineData("not a url")]
+        public void Validate_WebhookChannelWithUnsafeRecipient_False(string recipient)
+        {
+            var notification = CreateInstance(n =>
+            {
+                n.Channel = "Webhook";
+                n.Recipient = recipient;
+            });
+
+            var result = Validator.Validate(notification);
+
+            result.IsValid.Should().BeFalse();
+        }
+
+        [Fact]
+        public void Validate_NonWebhookChannelWithNonUrlRecipient_True()
+        {
+            var notification = CreateInstance(n =>
+            {
+                n.Channel = "Telegram";
+                n.Recipient = "12345678";
+            });
+
+            var result = Validator.Validate(notification);
+
+            result.IsValid.Should().BeTrue();
+        }
+
         private string GenerateString(int length)       
             => string.Join("", Enumerable.Repeat("1", length));
 

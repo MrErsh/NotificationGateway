@@ -50,6 +50,10 @@ builder.Services.AddHttpClient("Telegram", client =>
 builder.Services.AddHttpClient("Webhook", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    AllowAutoRedirect = false,
 });
 
 // Application Layer
