@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NotificationGateway.Domain.Entities;
 using NotificationGateway.Domain.Enums;
+using NotificationGateway.Domain.Exceptions;
 using NotificationGateway.Domain.Interfaces;
+using Npgsql;
 
 namespace NotificationGateway.Infrastructure.Data.Repositories
 {
@@ -27,9 +29,20 @@ namespace NotificationGateway.Infrastructure.Data.Repositories
 
         public async Task AddAsync(Notification notification, CancellationToken cancellationToken = default)
         {
-            await _context.Notifications.AddAsync(notification, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            _context.Notifications.Add(notification);
+            try
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (IsUniqueViolation(ex) && notification.IdempotencyKey is not null)
+            {
+                _context.ChangeTracker.Clear();
+                throw new DuplicateIdempotencyKeyException(notification.IdempotencyKey);
+            }
         }
+
+        private static bool IsUniqueViolation(DbUpdateException ex)
+            => ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation };
 
         public async Task UpdateAsync(Notification notification, CancellationToken cancellationToken = default)
         {

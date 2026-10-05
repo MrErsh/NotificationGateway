@@ -5,6 +5,7 @@ using NotificationGateway.Application.DTOs;
 using NotificationGateway.Application.Services;
 using NotificationGateway.Domain.Entities;
 using NotificationGateway.Domain.Enums;
+using NotificationGateway.Domain.Exceptions;
 using NotificationGateway.Domain.Interfaces;
 using Xunit;
 
@@ -64,19 +65,58 @@ namespace NotificationGateway.Application.Tests.Services
 
             //Assert
             notification.Should().NotBeNull();
-            notification.Channel.Should().Equals(NotificationChannel.Telegram);
-            notification.MessageType.Should().Equals(MessageType.Alert);
+            notification.Channel.Should().Be(NotificationChannel.Telegram);
+            notification.MessageType.Should().Be(MessageType.Alert);
             notification.Body.Should().Be("body");
             notification.Recipient.Should().Be("recipient");
             notification.IdempotencyKey.Should().Be("key");
             result.Should().NotBeNull();
-            result.NotificationId.Should().Equals(notification.Id);
+            result.NotificationId.Should().Be(notification.Id);
             _repository.Verify(r => r.AddAsync(It.IsAny<Notification>(), default), Times.Once);
             _processingService.Verify(ps => ps.ProcessNotificationAsync(notification), Times.Once);
             _idempotencyService.Verify(s => s.StoreResponseAsync("key",
-                                                                  It.IsAny<NotificationResponseDto>,
+                                                                  It.IsAny<NotificationResponseDto>(),
                                                                   TimeSpan.FromHours(24)),
                                             Times.Once);
+        }
+
+        [Fact]
+        public async Task NotifyAsync_DuplicateIdempotencyKey_ReturnsWinnerWithoutReprocessing()
+        {
+            const string key = "dup-key";
+            var winner = new Notification(MessageType.Alert, NotificationChannel.Email, "rcpt", "body", "subj", key);
+
+            var request = new NotificationRequestDto
+            {
+                MessageType = MessageType.Alert.ToString(),
+                Channel = NotificationChannel.Email.ToString(),
+                Recipient = "rcpt",
+                Body = "body",
+                Subject = "subj",
+                IdempotencyKey = key
+            };
+
+            _repository
+                .Setup(r => r.AddAsync(It.IsAny<Notification>(), default))
+                .ThrowsAsync(new DuplicateIdempotencyKeyException(key));
+            _repository
+                .Setup(r => r.GetByIdempotencyKeyAsync(key, default))
+                .ReturnsAsync(winner);
+
+            var sut = CreateSut();
+
+            var result = await sut.NotifyAsync(request, default);
+
+            result.NotificationId.Should().Be(winner.Id);
+            _processingService.Verify(
+                ps => ps.ProcessNotificationAsync(It.IsAny<Notification>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            _idempotencyService.Verify(
+                s => s.StoreResponseAsync(
+                    key,
+                    It.Is<NotificationResponseDto>(d => d.NotificationId == winner.Id),
+                    It.IsAny<TimeSpan>()),
+                Times.Once);
         }
 
         private NotificationAppService CreateSut() =>
