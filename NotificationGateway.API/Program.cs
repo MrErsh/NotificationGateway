@@ -3,6 +3,7 @@ using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
+using NotificationGateway.API.Hangfire;
 using NotificationGateway.Application.DTOs;
 using NotificationGateway.Application.Interfaces;
 using NotificationGateway.Application.Services;
@@ -90,15 +91,22 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-app.UseSwagger();
-app.UseSwaggerUI();
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
-app.UseHangfireDashboard("/hangfire", new DashboardOptions
+if (app.Configuration.GetValue<bool>("Hangfire:Dashboard:Enabled"))
 {
-DashboardTitle = "Notification Service Jobs",
-StatsPollingInterval = 10000,
-Authorization = new[] { new HangfireAuthorizationFilter() }
-});
+    var dashboardPath = app.Configuration["Hangfire:Dashboard:Path"] ?? "/hangfire";
+    var dashboardApiKey = app.Configuration["Hangfire:Dashboard:ApiKey"];
+    var allowLoopback = app.Environment.IsDevelopment();
+
+    app.UseHangfireDashboard(dashboardPath, new DashboardOptions
+    {
+        DashboardTitle = "Notification Service Jobs",
+        StatsPollingInterval = 10000,
+        Authorization = new[] { new ApiKeyOrLocalDashboardFilter(dashboardApiKey, allowLoopback) }
+    });
 }
 
 app.UseHttpsRedirection();
@@ -112,11 +120,3 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
-
-public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
-{
-    public bool Authorize(DashboardContext context)
-    {
-        return true;
-    }
-}
