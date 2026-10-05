@@ -6,7 +6,7 @@
 
         public string? Host { get; set; }
 
-        public byte? Port { get; set; }
+        public ushort? Port { get; set; }
 
         public bool? EnableSsl { get; set; }
 
