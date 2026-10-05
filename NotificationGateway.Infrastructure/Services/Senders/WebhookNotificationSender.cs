@@ -7,7 +7,7 @@ using System.Net.Http.Json;
 
 namespace NotificationGateway.Infrastructure.Services.Senders
 {
-    public class WebhookNotificationSender : INotificationSender, IDisposable
+    public class WebhookNotificationSender : INotificationSender
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<WebhookNotificationSender> _logger;
@@ -81,7 +81,5 @@ namespace NotificationGateway.Infrastructure.Services.Senders
                 }
             }
         }
-
-        public void Dispose() => _httpClient.Dispose();
     }
 }

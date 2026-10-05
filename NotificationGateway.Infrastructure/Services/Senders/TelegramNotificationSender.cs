@@ -8,7 +8,7 @@ using System.Net.Http.Json;
 
 namespace NotificationGateway.Infrastructure.Services.Senders
 {
-    public class TelegramNotificationSender : INotificationSender, IDisposable
+    public class TelegramNotificationSender : INotificationSender
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<TelegramNotificationSender> _logger;
@@ -55,12 +55,6 @@ namespace NotificationGateway.Infrastructure.Services.Senders
                 throw new HttpRequestException($"Telegram API error: {response.StatusCode} - {errorContent}");
             }
         }
-
-        #endregion
-
-        #region Implementation of IDisposable
-
-        public void Dispose() => _httpClient.Dispose();
 
         #endregion
 
