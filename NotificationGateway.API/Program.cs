@@ -9,6 +9,7 @@ using NotificationGateway.Application.Interfaces;
 using NotificationGateway.Application.Services;
 using NotificationGateway.Application.Validators;
 using NotificationGateway.Domain.Interfaces;
+using NotificationGateway.Infrastructure.Config;
 using NotificationGateway.Infrastructure.Data;
 using NotificationGateway.Infrastructure.Data.Repositories;
 using NotificationGateway.Infrastructure.Interfaces;
@@ -33,12 +34,14 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // Hangfire
+var hangfireSection = builder.Configuration.GetSection<HangfireSection>();
+
 builder.Services.AddHangfire(config =>
     config.UsePostgreSqlStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddHangfireServer(options =>
 {
-    options.Queues = new[] { "critical", "default" };
-    options.WorkerCount = Environment.ProcessorCount * 2;
+    options.Queues = hangfireSection.Queues ?? new[] { "critical", "default" };
+    options.WorkerCount = hangfireSection.WorkerCount ?? 4;
 });
 
 // HttpClients
